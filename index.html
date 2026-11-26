@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pinball Leveler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE everyday tool, used kneeling beside a machine: big numbers, few words
+   IDEA the machine seen from above, like an operator's manual leg diagram, with a bubble vial on the glass
+   PICTURE top-down cabinet, four legs with live raise/lower badges, a bubble that drifts to the high side
+   COLOUR white or night ground, cabinet red, chrome greys, blue for raise, magenta for lower, green when on target
+   TYPE Big Shoulders Display for readouts + Inter
+   LAYOUT phone: title band, machine, readouts, plan, calibrate, settings; wide: machine left, readouts and plan right */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#141012);--ink:light-dark(#1a1416,#f3eeee);--mute:light-dark(#6b5f63,#b3a7ab);--red:light-dark(#c8102e,#d6243f);--panel:light-dark(#f5f2f3,#1f191c);--line:light-dark(#ded5d8,#3b3236);--chrome:light-dark(#b9bdc4,#6b7079);--go:light-dark(#178a3f,#3fd273);--up:light-dark(#1d5fd1,#77a6ff);--down:light-dark(#b4236b,#ff74b4)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.num{font-family:"Big Shoulders Display",Impact,sans-serif;letter-spacing:-.01em}
+.top{background:var(--red);color:#fff;padding:14px max(4vw,16px) 12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font-size:34px;line-height:1.05}
+.chip{font-size:14px;font-weight:600;background:rgba(0,0,0,.25);padding:6px 12px;border-radius:99px;white-space:nowrap}
+.wrap{max-width:1180px;margin:0 auto;padding:16px max(4vw,16px) 40px;display:grid;gap:20px}
+@media(min-width:820px){.wrap{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);align-items:start}.machine{position:sticky;top:12px}}
+.machine svg{width:100%;max-width:460px;display:block;margin:0 auto;height:auto}
+.machine text{font-family:Inter,sans-serif}
+.read{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.lab{font-size:14px;color:var(--mute);font-weight:600}
+.num{font-size:clamp(44px,12vw,64px);line-height:1;font-weight:800;white-space:nowrap}
+.num.ok{color:var(--go)}
+.sub{font-size:14px;color:var(--mute)}
+.sub b{color:var(--ink)}
+.status{font-size:15px;font-weight:600;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line)}
+.status.level{background:var(--go);color:#fff;border-color:transparent}
+.btns{display:flex;flex-wrap:wrap;gap:10px}
+button,select,input{font:inherit;font-size:16px}
+button{min-height:46px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:600;cursor:pointer}
+button.pri{background:var(--red);color:#fff;border-color:var(--red)}
+button.on{outline:3px solid var(--go)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--up);outline-offset:2px}
+button:active{transform:translateY(1px)}
+h2{font-size:30px;margin:6px 0 8px;line-height:1.05}
+.plan{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.plan li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
+.plan .ar{font-size:26px;width:30px;text-align:center}
+.plan .t{font-family:"Big Shoulders Display",sans-serif;font-size:28px;font-weight:800;white-space:nowrap}
+.plan .up .ar,.plan .up .t{color:var(--up)}
+.plan .dn .ar,.plan .dn .t{color:var(--down)}
+.plan .hold{opacity:.55}
+.said{font-size:15px;color:var(--mute);min-height:1.5em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label.f{display:grid;gap:4px;font-size:14px;font-weight:600;color:var(--mute)}
+label.f input,label.f select{min-height:44px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+label.c{display:flex;gap:10px;align-items:center;font-size:15px;min-height:44px}
+label.c input{width:22px;height:22px}
+.prog{height:10px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0}
+.prog i{display:block;height:100%;width:0;background:var(--red)}
+.warn{border-left:5px solid var(--red)}
+.demo{display:none}
+.demo.show{display:block}
+input[type=range]{width:100%;accent-color:var(--red);min-height:44px}
+details summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}
+p{margin:6px 0}
+.note{font-size:14px;color:var(--mute)}
+@media(prefers-reduced-motion:no-preference){#bub{transition:transform .25s ease-out}}
+</style>
+</head>
+<body>
+<header class="top"><h1>Pinball Leveler</h1><span class="chip" id="chip">Sensors off</span></header>
+<main class="wrap">
+<section class="machine" aria-label="Machine seen from above">
+<svg id="mach" viewBox="0 0 360 500" role="img" aria-label="Top-down machine with leg adjustments">
+<defs>
+<linearGradient id="chr" x1="0" x2="1"><stop offset="0" stop-color="#eef0f3"/><stop offset=".5" stop-color="#9aa0a8"/><stop offset="1" stop-color="#d9dce0"/></linearGradient>
+<linearGradient id="pf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a1d33"/><stop offset="1" stop-color="#140f1a"/></linearGradient>
+<linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/></linearGradient>
+<radialGradient id="bg1" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cfe9ff"/></radialGradient>
+</defs>
+<rect x="112" y="10" width="136" height="56" rx="7" fill="#1a1416"/>
+<rect x="121" y="18" width="118" height="40" rx="4" fill="var(--red)"/>
+<text x="180" y="44" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Backbox</text>
+<rect x="100" y="78" width="160" height="364" rx="8" fill="var(--red)"/>
+<rect x="100" y="78" width="7" height="364" rx="3" fill="url(#chr)"/><rect x="253" y="78" width="7" height="364" rx="3" fill="url(#chr)"/>
+<rect x="113" y="90" width="134" height="330" rx="4" fill="url(#pf)"/>
+<g opacity=".85"><circle cx="150" cy="130" r="9" fill="#e8b21a"/><circle cx="180" cy="122" r="9" fill="#e8251a"/><circle cx="210" cy="130" r="9" fill="#2a9df4"/>
+<path d="M140 340l8-14 8 14z M172 350l8-14 8 14z M204 340l8-14 8 14z" fill="#3fd273"/></g>
+<path d="M150 396l26 12-2 5-27-9z M210 396l-26 12 2 5 27-9z" fill="#fff"/>
+<rect x="113" y="90" width="134" height="330" rx="4" fill="url(#gl)"/>
+<rect x="104" y="426" width="152" height="9" rx="4" fill="url(#chr)"/>
+<g id="phone"><rect x="152" y="196" width="56" height="112" rx="10" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/><rect id="notch" x="170" y="200" width="20" height="5" rx="2.5" fill="#fff" fill-opacity=".6"/></g>
+<circle cx="180" cy="252" r="56" fill="#fff" fill-opacity=".1" stroke="url(#chr)" stroke-width="5"/>
+<path d="M124 252h112M180 196v112" stroke="#fff" stroke-opacity=".25"/>
+<circle id="ring" cx="180" cy="252" r="15" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="4 3"/>
+<circle id="bub" cx="180" cy="252" r="11" fill="url(#bg1)" stroke="#fff"/>
+<text x="180" y="494" text-anchor="middle" fill="var(--mute)" font-size="14" font-weight="600">Front · flippers · you stand here</text>
+<g id="legs"></g>
+</svg>
+<p class="note" style="text-align:center">The bubble drifts to the high side. Left and right are as seen standing at the flippers.</p>
+</section>
+
+<section style="display:grid;gap:16px">
+<div class="read">
+<div class="card"><div class="lab">Pitch, front to back</div><div class="num" id="pv">–.––°</div><div class="sub" id="ps">target <b id="pt">6.50°</b></div></div>
+<div class="card"><div class="lab">Side to side</div><div class="num" id="rv">–.––°</div><div class="sub" id="rs">target <b id="rt">0.00°</b></div></div>
+</div>
+<div class="status" id="st">Lay the phone on the playfield glass, top toward the backbox, then start.</div>
+<div class="btns">
+<button class="pri" id="go">Start sensors and voice</button>
+<button id="say">Speak now</button>
+<button id="hold">Hold reading</button>
+<button id="demoBtn">Demo</button>
+</div>
+<div class="said" id="said"></div>
+
+<div class="card demo" id="demo">
+<h2>Demo machine</h2>
+<p class="note">No sensors here, so a pretend machine stands in, with a phone case that reads 0.35° and −0.22° off. Calibrate first, then apply the plan to see the legs converge.</p>
+<label class="f">Pretend pitch <span id="dpv"></span><input type="range" id="dp" min="4" max="9" step="0.01" value="6.1"></label>
+<label class="f">Pretend side to side <span id="drv"></span><input type="range" id="dr" min="-1.5" max="1.5" step="0.01" value="0.18"></label>
+<div class="btns"><button id="apply">Apply the plan</button><button id="bump">Bump the machine</button></div>
+</div>
+
+<div class="card">
+<h2>Leg plan</h2>
+<ul class="plan" id="plan"></ul>
+<p class="note" id="pnote"></p>
+</div>
+
+<div class="card">
+<h2>Calibrate for your case</h2>
+<p class="note">Do this once per case. Put the phone, in its case, screen up on any steady surface. Best: two readings, turning the phone end for end on the same spot, which cancels the surface's own tilt. Quick: one reading on a surface you trust is level.</p>
+<div class="prog"><i id="cbar"></i></div>
+<p id="cmsg" class="sub">Offset now: <b id="coff">none</b></p>
+<div class="btns"><button class="pri" id="cal2">Two-way calibrate</button><button id="cal1">Quick zero</button><button id="calx">Clear</button></div>
+</div>
+
+<div class="card">
+<h2>Targets and tolerance</h2>
+<div class="grid">
+<label class="f">Pitch target °<input id="pT" type="number" step="0.1" inputmode="decimal"></label>
+<label class="f">Pitch tolerance ± °<input id="tolP" type="number" step="0.01" min="0" inputmode="decimal"></label>
+<label class="f">Side target °<input id="rT" type="number" step="0.01" inputmode="decimal"></label>
+<label class="f">Side tolerance ± °<input id="tolR" type="number" step="0.01" min="0" inputmode="decimal"></label>
+</div>
+<details><summary>Machine, voice and sensor settings</summary>
+<div class="grid">
+<label class="f">Leg spacing, left to right<input id="W" type="number" step="0.1" inputmode="decimal"></label>
+<label class="f">Leg spacing, front to back<input id="L" type="number" step="0.1" inputmode="decimal"></label>
+<label class="f">Units<select id="unit"><option value="in">inches</option><option value="mm">millimetres</option></select></label>
+<label class="f">Leveler thread<select id="thr"><option value="1.5875">3/8″-16 (pinball standard)</option><option value="1.4111">5/16″-18</option><option value="1.5">M10 × 1.5</option><option value="1.25">M8 × 1.25</option></select></label>
+<label class="f">How to split the work<select id="strategy"><option value="bal-up">Least turning, favour raising</option><option value="bal-dn">Least turning, favour lowering</option><option value="raise">Raise legs only</option><option value="lower">Lower legs only</option></select></label>
+<label class="f">Averaging window<select id="win"><option value="1">1 second</option><option value="2">2 seconds</option><option value="4">4 seconds</option><option value="8">8 seconds</option></select></label>
+<label class="f">Repeat instructions every<select id="repeat"><option value="0">Never</option><option value="10">10 s</option><option value="20">20 s</option><option value="40">40 s</option></select></label>
+<label class="f">Voice speed<select id="rate"><option value="0.85">Slow</option><option value="1">Normal</option><option value="1.2">Quick</option></select></label>
+<label class="f">Phone top points to<select id="orient"><option value="up">Backbox</option><option value="down">Flippers</option></select></label>
+</div>
+<label class="c"><input type="checkbox" id="auto"> Speak automatically once the reading settles</label>
+<label class="c"><input type="checkbox" id="flipLR"> Swap left and right (if lifting the phone's right edge reads left high)</label>
+<label class="c"><input type="checkbox" id="flipFB"> Swap front and back (if lifting the phone's top reads pitch going down)</label>
+<p class="note">Measure leg spacing centre to centre between leg bolts; a modern Stern body is about 29 × 47 in. Wrong spacing only scales the turn amounts, so a second pass fixes it.</p>
+</details>
+</div>
+
+<div class="card">
+<h2>How it decides</h2>
+<p>The four feet are treated as one tilted plane. From pitch and side tilt together it works out the height change at every leg that lands both targets in one pass, then picks the split that needs the least total turning, or only raises or only lowers if you choose. An axis already inside its tolerance is left alone, so a pitch-only fix moves just a pair of legs.</p>
+<p class="note">Before you start, press down on diagonal corners. If the machine rocks, lower the loose leg until it just bites, or every reading will drift. Phone sensors resolve about 0.02° to 0.05° once averaged; for a ±0.01° side target use the 4 or 8 second window and keep the phone in one spot on the glass.</p>
+<p class="note warn card" id="blocked" hidden></p>
+</div>
+</section>
+</main>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const D2R=Math.PI/180;
+const DEF={pT:6.5,rT:0,tolP:0.1,tolR:0.01,win:2,orient:'up',flipLR:false,flipFB:false,W:29,L:47,unit:'in',thr:1.5875,strategy:'bal-up',auto:true,repeat:20,rate:1,off:null};
+let S;
+try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('pbl.v1')||'{}'))}catch(e){S=Object.assign({},DEF)}
+const save=()=>{try{localStorage.setItem('pbl.v1',JSON.stringify(S))}catch(e){}};
+const LEGS=['Front left','Front right','Back left','Back right'];
+const FR=['','⅛','¼','⅜','½','⅝','¾','⅞'];
+const FW=['','an eighth','a quarter','three eighths','a half','five eighths','three quarters','seven eighths'];
+
+let buf=[],src='off',gotReal=false,hold=null,voice=false,lastKey='',lastSpoke=0,stableSince=null,cap=null,cur=null,bumpUntil=0,zSign=1;
+const sim={P:6.1,R:0.18,oP:0.35,oR:-0.22,tP:0.06,tR:-0.04};
+
+function push(x,y,z){
+  const n=Math.hypot(x,y,z);if(!n)return;
+  if(Math.abs(z)>0.5*n)zSign=z<0?-1:1;
+  const p=Math.asin(Math.max(-1,Math.min(1,zSign*y/n)))/D2R,r=Math.asin(Math.max(-1,Math.min(1,zSign*x/n)))/D2R;
+  const t=performance.now();buf.push({t,p,r});
+  const keep=t-(Math.max(S.win,3)*1000+800);
+  while(buf.length&&buf[0].t<keep)buf.shift();
+}
+function stats(a){const n=a.length;if(!n)return null;let sp=0,sr=0;for(const s of a){sp+=s.p;sr+=s.r}const mp=sp/n,mr=sr/n;let vp=0,vr=0;for(const s of a){vp+=(s.p-mp)**2;vr+=(s.r-mr)**2}return{n,p:mp,r:mr,sdp:Math.sqrt(vp/n),sdr:Math.sqrt(vr/n)}}
+
+function measure(){
+  const t=performance.now();
+  const rec=stats(buf.filter(s=>s.t>t-500));
+  if(!rec||rec.n<5)return null;
+  const moving=rec.sdp>0.25||rec.sdr>0.25;
+  if(moving)stableSince=null;else if(stableSince==null)stableSince=t;
+  const from=moving?t-500:Math.max(t-S.win*1000,stableSince);
+  const m=stats(buf.filter(s=>s.t>=from));
+  const settled=!moving&&t-stableSince>=S.win*1000;
+  return{phP:m.p,phR:m.r,se:Math.max(m.sdp,m.sdr)/Math.sqrt(m.n),moving,settled,prog:moving?0:Math.min(1,(t-stableSince)/(S.win*1000))};
+}
+function toMachine(m){
+  const o=S.off||{p:0,r:0};const k=S.orient==='up'?1:-1;
+  return{P:k*(m.phP-o.p)*(S.flipFB?-1:1),R:k*(m.phR-o.r)*(S.flipLR?-1:1)};
+}
+function plan(P,R){
+  const outP=Math.abs(P-S.pT)>S.tolP,outR=Math.abs(R-S.rT)>S.tolR;
+  const mm=S.unit==='in'?25.4:1,W=S.W*mm,L=S.L*mm;
+  const dP=outP?L*(Math.sin(S.pT*D2R)-Math.sin(P*D2R)):0;
+  const dR=outR?W*(Math.sin(S.rT*D2R)-Math.sin(R*D2R)):0;
+  const c=[-dR/2-dP/2,dR/2-dP/2,-dR/2+dP/2,dR/2+dP/2];
+  const cands=c.map(v=>-v);let a;
+  if(S.strategy==='raise')a=Math.max(...cands);
+  else if(S.strategy==='lower')a=Math.min(...cands);
+  else{
+    const cost=x=>c.reduce((s,v)=>s+Math.abs(x+v),0);
+    const best=Math.min(...cands.map(cost));
+    const ties=cands.filter(x=>cost(x)<=best+1e-6);
+    a=S.strategy==='bal-up'?Math.max(...ties):Math.min(...ties);
+  }
+  const d=c.map(v=>a+v);
+  const moves=d.map((mmv,i)=>{const turns=Math.abs(mmv)/S.thr;const e=Math.round(turns*8);return{i,mm:mmv,turns,e,act:Math.abs(mmv)<0.02?0:Math.sign(mmv)}});
+  return{outP,outR,level:!outP&&!outR,moves};
+}
+const fracTxt=e=>{const w=Math.floor(e/8),r=e%8;return(w?w:'')+FR[r]||'0'};
+function turnWords(mv){
+  if(mv.e===0)return'a tiny nudge, less than an eighth of a turn';
+  const w=Math.floor(mv.e/8),r=mv.e%8;
+  if(!w)return FW[r]+' of a turn';
+  if(!r)return w+(w===1?' turn':' turns');
+  return w+' and '+FW[r]+' turns';
+}
+function speech(P,R,pl){
+  if(pl.level)return`Level. Pitch ${P.toFixed(2)}, side to side ${Math.abs(R).toFixed(2)}. Both targets hit.`;
+  let s=[];
+  if(pl.outP)s.push(`Pitch ${P.toFixed(2)}, target ${(+S.pT).toFixed(1)}.`);
+  if(pl.outR)s.push(`${R>S.rT?'Right':'Left'} side high by ${Math.abs(R-S.rT).toFixed(2)} degrees.`);
+  const mv=pl.moves.filter(m=>m.act).sort((a,b)=>Math.abs(b.mm)-Math.abs(a.mm));
+  for(const m of mv)s.push(`${m.act>0?'Raise':'Lower'} ${LEGS[m.i].toLowerCase()} ${turnWords(m)}.`);
+  return s.join(' ');
+}
+function speak(txt){
+  $('said').textContent='Said: '+txt;
+  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(txt);u.rate=+S.rate;speechSynthesis.speak(u)}catch(e){}
+  lastSpoke=performance.now();
+}
+
+/* ---------- drawing ---------- */
+const LEGPOS=[[96,438,'l'],[264,438,'r'],[96,82,'l'],[264,82,'r']];
+$('legs').innerHTML=LEGPOS.map(([x,y,s],i)=>{const bx=s==='l'?4:272;return`<rect x="${x-10}" y="${y-10}" width="20" height="20" rx="3" fill="url(#chr)" stroke="#555" stroke-width="1"/>
+<g id="b${i}"><rect id="bb${i}" x="${bx}" y="${y-33}" width="84" height="66" rx="10" fill="var(--panel)" stroke="var(--line)" stroke-width="1.5"/>
+<text x="${bx+42}" y="${y-15}" text-anchor="middle" font-size="13" font-weight="600" fill="var(--mute)">${LEGS[i]}</text>
+<text id="bt${i}" x="${bx+42}" y="${y+10}" text-anchor="middle" font-size="24" font-weight="800" style="font-family:'Big Shoulders Display',sans-serif" fill="var(--ink)">—</text>
+<text id="bs${i}" x="${bx+42}" y="${y+27}" text-anchor="middle" font-size="13" fill="var(--mute)">hold</text></g>`}).join('');
+
+function soft(u){const a=Math.abs(u),R=56-11-15;const v=a<=1?15*a:15+R*(1-Math.exp(-(a-1)/5));return Math.sign(u)*v}
+function draw(P,R,pl,m){
+  const okP=!pl.outP,okR=!pl.outR;
+  $('pv').textContent=P.toFixed(2)+'°';$('pv').className='num'+(okP?' ok':'');
+  $('rv').textContent=Math.abs(R).toFixed(3)+'°';$('rv').className='num'+(okR?' ok':'');
+  const dp=S.pT-P,dr=R-S.rT;
+  $('ps').innerHTML=`target <b>${(+S.pT).toFixed(2)}°</b> · ${okP?'on target':(dp>0?'needs +':'needs −')+Math.abs(dp).toFixed(2)+'°'}`;
+  $('rs').innerHTML=`target <b>${(+S.rT).toFixed(2)}°</b> · ${Math.abs(dr)<0.005?'dead level':(dr>0?'right':'left')+' side high'}`;
+  const ux=(R-S.rT)/Math.max(S.tolR,1e-3),uy=(P-S.pT)/Math.max(S.tolP,1e-3);
+  $('bub').setAttribute('transform',`translate(${soft(ux).toFixed(1)} ${(-soft(uy)).toFixed(1)})`);
+  $('bub').setAttribute('fill',pl.level?'var(--go)':'url(#bg1)');
+  const mmU=S.unit==='in'?'mm':'mm';
+  $('plan').innerHTML=pl.moves.map(mv=>{
+    const cls=mv.act>0?'up':mv.act<0?'dn':'hold';
+    const t=mv.act?(mv.e?fracTxt(mv.e):'nudge'):'—';
+    const what=mv.act?`${mv.act>0?'Raise':'Lower'} ${Math.abs(mv.mm).toFixed(2)} ${mmU}`:'Leave as is';
+    return`<li class="${cls}"><span class="ar">${mv.act>0?'▲':mv.act<0?'▼':'•'}</span><span><b>${LEGS[mv.i]}</b><br><span class="sub">${what}</span></span><span class="t">${t}${mv.act&&mv.e?' <small style="font-size:15px">turn'+(mv.e>8?'s':'')+'</small>':''}</span></li>`}).join('');
+  pl.moves.forEach(mv=>{
+    $('bt'+mv.i).textContent=mv.act?(mv.act>0?'▲ ':'▼ ')+(mv.e?fracTxt(mv.e):'·'):'—';
+    $('bt'+mv.i).setAttribute('fill',mv.act>0?'var(--up)':mv.act<0?'var(--down)':'var(--ink)');
+    $('bs'+mv.i).textContent=mv.act?(mv.act>0?'raise':'lower')+(mv.e?'':' a nudge'):'hold';
+    $('bb'+mv.i).setAttribute('stroke',mv.act?(mv.act>0?'var(--up)':'var(--down)'):'var(--line)');
+  });
+  $('pnote').textContent=`Turns of a ${S.thr} mm-per-turn leveler, rounded to eighths. ${S.strategy.startsWith('bal')?'Least total turning.':S.strategy==='raise'?'Raising only.':'Lowering only.'}`;
+  const st=$('st');
+  if(hold){st.className='status';st.textContent='Holding this reading. Tap Hold again to go live.'}
+  else if(m.moving){st.className='status';st.textContent='Moving. Keep hands off the machine for a moment.'}
+  else if(!m.settled){st.className='status';st.textContent=`Settling… ${Math.round(m.prog*100)}%`}
+  else if(pl.level){st.className='status level';st.textContent=`Level. Both targets hit. Noise ±${m.se.toFixed(3)}°`}
+  else{st.className='status';st.textContent=`Steady. Follow the leg plan. Noise ±${m.se.toFixed(3)}°`}
+  $('notch').setAttribute('y',S.orient==='up'?200:299);
+}
+
+/* ---------- loop ---------- */
+function tick(){
+  if(src==='demo')demoSamples();
+  const m=measure();
+  if(cap)runCap(m);
+  if(m){
+    let M=toMachine(m);
+    if(hold)M=hold;
+    const pl=plan(M.P,M.R);cur={M,pl,m};
+    draw(M.P,M.R,pl,m);
+    if(voice&&S.auto&&!hold&&m.settled&&!cap){
+      const key=pl.level?'level':pl.moves.map(x=>x.act*x.e).join(',')+(pl.outP?'p':'')+(pl.outR?'r':'');
+      const now=performance.now(),busy=window.speechSynthesis&&speechSynthesis.speaking;
+      if(!busy&&(key!==lastKey||(S.repeat>0&&key!=='level'&&now-lastSpoke>S.repeat*1000))){lastKey=key;speak(speech(M.P,M.R,pl))}
+    }
+  }
+}
+setInterval(tick,100);
+
+/* ---------- sensors ---------- */
+function onMotion(e){const a=e.accelerationIncludingGravity;if(!a||a.x==null)return;if(!gotReal){gotReal=true;src='live';$('chip').textContent='Live sensors';$('demo').classList.remove('show')}if(src==='live')push(a.x,a.y,a.z)}
+function blocked(why){const b=$('blocked');b.hidden=false;b.textContent=`No motion data reached this page${why?' ('+why+')':''}. Inside the Claude app, pages run in a sandbox that can block motion sensors. Open the standalone copy of this page in Safari to use the real sensors. Demo mode is running meanwhile.`}
+async function start(){
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);voice=true;$('go').classList.add('on')}catch(e){}
+  try{if(window.DeviceMotionEvent&&typeof DeviceMotionEvent.requestPermission==='function'){const r=await DeviceMotionEvent.requestPermission();if(r!=='granted')throw new Error('permission '+r)}}
+  catch(e){blocked(e.message||'refused');startDemo();return}
+  window.addEventListener('devicemotion',onMotion);
+  try{if(navigator.wakeLock)await navigator.wakeLock.request('screen')}catch(e){}
+  $('go').textContent='Voice on';
+  setTimeout(()=>{if(!gotReal){blocked('');startDemo()}},1800);
+}
+function startDemo(){if(gotReal)return;src='demo';$('chip').textContent='Demo machine';$('demo').classList.add('show')}
+let gs=null;
+function gauss(){if(gs!=null){const g=gs;gs=null;return g}let u=0,v=0;while(!u)u=Math.random();v=Math.random();const r=Math.sqrt(-2*Math.log(u));gs=r*Math.sin(2*Math.PI*v);return r*Math.cos(2*Math.PI*v)}
+let simT=0;
+function demoSamples(){
+  for(let i=0;i<6;i++){
+    let mp,mr;
+    if(cap){const k=cap.step===2?-1:1;mp=k*sim.tP;mr=k*sim.tR}
+    else{const k=S.orient==='up'?1:-1;mp=k*sim.P*(S.flipFB?-1:1);mr=k*sim.R*(S.flipLR?-1:1)}
+    mp+=sim.oP;mr+=sim.oR;
+    const j=performance.now()<bumpUntil?1.5:0;
+    const x=Math.sin((mr+j*gauss())*D2R)+0.0006*gauss(),y=Math.sin((mp+j*gauss())*D2R)+0.0006*gauss();
+    const z=Math.sqrt(Math.max(0,1-x*x-y*y));
+    push(-x*9.81,-y*9.81,-z*9.81); /* inverted on purpose, like older iOS, to exercise the sign fix */
+  }
+}
+
+/* ---------- calibration ---------- */
+const CAPMS=3000;
+function beginCap(two){cap={two,step:1,acc:[],t0:null,A:null};stableSince=null;buf=[];$('cmsg').textContent=two?'Step 1 of 2: hold still…':'Hold still…'}
+function runCap(m){
+  const t=performance.now();
+  if(!m||m.moving){cap.acc=[];cap.t0=null;$('cbar').style.width='0';return}
+  if(cap.t0==null)cap.t0=t;
+  const last=buf[buf.length-1];if(last)cap.acc.push(last);
+  const f=Math.min(1,(t-cap.t0)/CAPMS);$('cbar').style.width=(f*100)+'%';
+  if(f<1)return;
+  const s=stats(cap.acc);
+  if(cap.two&&cap.step===1){cap.A=s;cap.step=2;cap.acc=[];cap.t0=null;buf=[];stableSince=null;$('cbar').style.width='0';
+    $('cmsg').textContent='Step 2 of 2: turn the phone end for end on the same spot, let go, hold still…';cap.wait=t+2500;speak('Now turn the phone end for end on the same spot.');return}
+  if(cap.wait&&t<cap.wait){cap.acc=[];cap.t0=null;return}
+  if(cap.two){const A=cap.A;S.off={p:(A.p+s.p)/2,r:(A.r+s.r)/2};$('cmsg').innerHTML=`Done. Surface itself tilts ${((A.p-s.p)/2).toFixed(3)}° / ${((A.r-s.r)/2).toFixed(3)}°, cancelled out. Offset <b id="coff"></b>`}
+  else{S.off={p:s.p,r:s.r};$('cmsg').innerHTML='Done. Offset <b id="coff"></b>'}
+  cap=null;save();showOff();speak('Calibrated.');buf=[];stableSince=null;
+}
+function showOff(){const o=S.off;const el=$('coff');if(el)el.textContent=o?`${o.p.toFixed(3)}° front-back, ${o.r.toFixed(3)}° side`:'none'}
+
+/* ---------- controls ---------- */
+const NUM=['pT','tolP','rT','tolR','W','L'],SEL=['unit','strategy','win','repeat','rate','orient'],CHK=['auto','flipLR','flipFB'];
+function fill(){NUM.forEach(k=>$(k).value=S[k]);SEL.forEach(k=>$(k).value=String(S[k]));CHK.forEach(k=>$(k).checked=!!S[k]);$('thr').value=String(S.thr)}
+fill();showOff();
+NUM.forEach(k=>$(k).addEventListener('input',()=>{const v=parseFloat($(k).value);if(isFinite(v)){S[k]=Math.abs(v)<1e6?v:S[k];if(k.startsWith('tol'))S[k]=Math.max(0,S[k]);save();lastKey=''}}));
+SEL.forEach(k=>$(k).addEventListener('change',()=>{const v=$(k).value;
+  if(k==='unit'&&v!==S.unit){const f=v==='mm'?25.4:1/25.4;S.W=+(S.W*f).toFixed(1);S.L=+(S.L*f).toFixed(1);$('W').value=S.W;$('L').value=S.L}
+  S[k]=['win','repeat','rate'].includes(k)?+v:v;save();lastKey=''}));
+CHK.forEach(k=>$(k).addEventListener('change',()=>{S[k]=$(k).checked;save();lastKey=''}));
+$('thr').addEventListener('change',()=>{S.thr=+$('thr').value;save();lastKey=''});
+$('go').addEventListener('click',start);
+$('demoBtn').addEventListener('click',()=>{try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);voice=true}catch(e){}startDemo()});
+$('say').addEventListener('click',()=>{if(cur)speak(speech(cur.M.P,cur.M.R,cur.pl));else speak('No reading yet. Tap start first.')});
+$('hold').addEventListener('click',()=>{hold=hold?null:(cur?cur.M:null);$('hold').textContent=hold?'Go live':'Hold reading';$('hold').classList.toggle('on',!!hold)});
+$('cal2').addEventListener('click',()=>{if(src==='off'){$('cmsg').textContent='Tap Start first.';return}beginCap(true)});
+$('cal1').addEventListener('click',()=>{if(src==='off'){$('cmsg').textContent='Tap Start first.';return}beginCap(false)});
+$('calx').addEventListener('click',()=>{S.off=null;save();$('cmsg').innerHTML='Offset now: <b id="coff"></b>';showOff()});
+const syncSim=()=>{$('dpv').textContent=sim.P.toFixed(2)+'°';$('drv').textContent=sim.R.toFixed(2)+'°'};
+$('dp').addEventListener('input',()=>{sim.P=+$('dp').value;syncSim()});
+$('dr').addEventListener('input',()=>{sim.R=+$('dr').value;syncSim()});
+$('apply').addEventListener('click',()=>{if(!cur)return;const mm=S.unit==='in'?25.4:1,W=S.W*mm,L=S.L*mm;
+  const d=cur.pl.moves.map(m=>m.act*m.e/8*S.thr);
+  sim.P=Math.asin(Math.sin(sim.P*D2R)+((d[2]+d[3])-(d[0]+d[1]))/2/L)/D2R;
+  sim.R=Math.asin(Math.sin(sim.R*D2R)+((d[1]+d[3])-(d[0]+d[2]))/2/W)/D2R;
+  $('dp').value=sim.P;$('dr').value=sim.R;syncSim();bumpUntil=performance.now()+1200});
+$('bump').addEventListener('click',()=>{bumpUntil=performance.now()+1500});
+syncSim();
+window.__pbl={plan,S,sim,speech};
+}
+</script>
+</body>
+</html>
